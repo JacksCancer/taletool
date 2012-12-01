@@ -1,0 +1,17 @@
+fs = require 'fs'
+{exec} = require 'child_process'
+
+sources =
+	animview: ['glcontext','main', 'scene']
+
+task 'sbuild', 'Build single js', ->
+	for pkg, src of sources
+		console.log "coffee -c -j #{pkg}.coffee --output ../web #{(src.map (name) -> "#{name}.coffee").join(' ')}"
+		exec "coffee -c -j #{pkg}.coffee --output ../web #{(src.map (name) -> "#{name}.coffee").join(' ')}",
+		#exec "coffee -c --output ../web #{(src.map (name) -> "#{name}.coffee").join(' ')}",
+		(err, stdout, stderr) ->
+			console.log stdout
+			if err
+				console.log "fail: #{stderr}"
+				console.log err
+		
