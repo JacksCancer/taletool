@@ -63,9 +63,78 @@ initScene = (ctx, log) ->
 		width = scene.bg0.width
 		height = scene.bg0.height
 
-		wscale = width / gl.drawingBufferWidth
-		hscale = height / gl.drawingBufferHeight
+		scene.fb = gl.createFramebuffer()
+		scene.fbTemp = gl.createFramebuffer()
+		scene.fbColor = gl.createTexture()
+		scene.fbTempColor = gl.createTexture()
+		scene.fbWidth = width * 8
+		scene.fbHeight = height * 8
 
+		gl.bindTexture(gl.TEXTURE_2D, scene.fbColor)
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, scene.fbWidth, scene.fbHeight, 0, gl.RGBA, gl.UNSIGNED_SHORT_4_4_4_4, null)
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+
+		gl.bindTexture(gl.TEXTURE_2D, scene.fbTempColor)
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, scene.fbWidth, scene.fbHeight, 0, gl.RGBA, gl.UNSIGNED_SHORT_4_4_4_4, null)
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+
+		gl.bindFramebuffer(gl.FRAMEBUFFER, scene.fb);
+		gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, scene.fbColor, 0)
+
+		if gl.FRAMEBUFFER_COMPLETE != gl.checkFramebufferStatus(gl.FRAMEBUFFER)
+			log("fb status: "+ gl.checkFramebufferStatus(gl.FRAMEBUFFER))
+
+
+		gl.bindFramebuffer(gl.FRAMEBUFFER, scene.fbTemp);
+		gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, scene.fbTempColor, 0)
+
+		if gl.FRAMEBUFFER_COMPLETE != gl.checkFramebufferStatus(gl.FRAMEBUFFER)
+			log("fb status: "+ gl.checkFramebufferStatus(gl.FRAMEBUFFER))
+
+
+		shader = scene.composeshader
+		gl.useProgram(shader.program)
+
+		checkUniform(shader, "u_scale")
+		checkUniform(shader, "u_translate")
+		checkUniform(shader, "u_tex")
+		checkAttrib(shader, "a_coord")
+
+		gl.uniform2f(shader.uniform.u_scale, 1, 1)
+		gl.uniform2f(shader.uniform.u_translate, 0, 0)
+		gl.uniform1i(shader.uniform.u_tex, 0)
+
+
+		dwscale = scene.fbWidth / gl.drawingBufferWidth
+		dhscale = scene.fbHeight / gl.drawingBufferHeight
+		dscale = Math.max(dwscale, dhscale)
+
+		shader = scene.dotshader
+		gl.useProgram(shader.program)
+
+		checkUniform(shader, "u_tex")
+		checkUniform(shader, "u_veca")
+		checkUniform(shader, "u_vecb")
+		checkUniform(shader, "u_scale")
+		checkUniform(shader, "u_texscale")
+		checkAttrib(shader, "a_coord")
+
+		gl.uniform2f(shader.uniform.u_veca, 1, 0)
+		gl.uniform2f(shader.uniform.u_vecb, Math.sin(Math.PI/6), Math.cos(Math.PI/6))
+		gl.uniform2f(shader.uniform.u_scale, dwscale / dscale, dhscale / dscale)
+		gl.uniform2f(shader.uniform.u_texscale, 1 / scene.fbWidth, 1 / scene.fbHeight)
+
+		gl.uniform1i(shader.uniform.u_tex, 0)
+
+
+		wscale = width / scene.fbWidth
+		hscale = height / scene.fbHeight
 		scale = Math.max(wscale, hscale)
 
 		shader = scene.blendshader
@@ -96,17 +165,19 @@ initScene = (ctx, log) ->
 
 		gl.uniform1i(shader.uniform.u_tex0, 0)
 		gl.uniform1i(shader.uniform.u_tex1, 1)
-		gl.uniform4f(shader.uniform.u_transform, -width, -height, 1 / (gl.drawingBufferWidth * scale), 1 / (gl.drawingBufferHeight * scale))
+		gl.uniform4f(shader.uniform.u_transform, -width, -height, 1 / (scene.fbWidth * scale), 1 / (scene.fbHeight * scale))
 		gl.uniform2f(shader.uniform.u_texscale, 1 / width, 1 / height)
 		gl.uniform1f(shader.uniform.u_scale, 1 / scale)
+
+		return
 
 
 	scene.render = (factor) ->
 
-		
-		gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight)
+		gl.bindFramebuffer(gl.FRAMEBUFFER, scene.fbTemp);
+		gl.viewport(0, 0, scene.fbWidth, scene.fbHeight)
 		gl.clearColor(0.4, 0.4, 0, 1)
-		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+		gl.clear(gl.COLOR_BUFFER_BIT)
 
 		shader = scene.blendshader
 		ctx.use(shader)
@@ -144,6 +215,42 @@ initScene = (ctx, log) ->
 		gl.vertexAttribPointer(shader.attrib.a_size, 2, gl.FLOAT, false, 4 * 6, 4 * 4)
 		gl.drawArrays(gl.POINTS, 0, scene.animverts.length / 6)
 
+
+		shader = scene.composeshader
+		ctx.use(shader)
+
+		gl.bindFramebuffer(gl.FRAMEBUFFER, scene.fb)
+		gl.viewport(0, 0, scene.fbWidth, scene.fbHeight)
+		gl.clearColor(1, 1, 1, 1)
+		#gl.clearColor(1, 1, 1, 1)
+		gl.clear(gl.COLOR_BUFFER_BIT)
+
+		gl.activeTexture(gl.TEXTURE0)
+		gl.bindTexture(gl.TEXTURE_2D, scene.fbTempColor)
+
+		gl.enable(gl.BLEND)
+		gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, scene.vertices)
+		gl.vertexAttribPointer(shader.attrib.a_coord, 2, gl.FLOAT, false, 0, 0)
+		gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+
+		gl.disable(gl.BLEND)
+
+
+		shader = scene.dotshader
+		ctx.use(shader)
+
+		gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+		gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight)
+
+		gl.activeTexture(gl.TEXTURE0)
+		gl.bindTexture(gl.TEXTURE_2D, scene.fbColor)
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, scene.vertices)
+		gl.vertexAttribPointer(shader.attrib.a_coord, 2, gl.FLOAT, false, 0, 0)
+		gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+
 		#range = gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE)
 		#log(range[0] + ", " + range[1])
 
@@ -151,6 +258,9 @@ initScene = (ctx, log) ->
 		$.when(
 			loadShader("blendshader", "blend")
 			loadShader("animshader", "anim")
+			loadShader("quadpixshader", "quadpix")
+			loadShader("dotshader", "dot")
+			loadShader("composeshader", "compose")
 			loadTexture("bg0", "sample/bg0.png")
 			loadTexture("bg1", "sample/bg1.png")
 			loadTexture("tex0", "sample/test1.png")
