@@ -5,6 +5,7 @@ precision mediump float;
 uniform vec2 u_veca, u_vecb;
 uniform vec2 u_texscale;
 uniform sampler2D u_tex;
+uniform sampler2D u_tex2;
 varying vec2 v_texcoord;
 
 vec2 vx = vec2(u_vecb.y, -u_vecb.x);
@@ -13,9 +14,11 @@ vec2 vy = vec2(-u_veca.y, u_veca.x);
 //vec2 veca2 = ()
 
 //const float scale = .25;
-const float scale = .25;
+const float scale = 1.;
 const float maxr = 0.577350269;
-const float smoothr = 5. * scale;
+const float maxr2 = 0.866025404;
+
+const float smoothr = 2. * scale;
 const float scale2 = scale * maxr;
 const float smoothr2 = 2. * scale2;
 
@@ -37,16 +40,16 @@ vec2 vy2 = vec2(-veca2.y, veca2.x);
 float black(vec2 v)
 {
 	vec4 color = texture2D(u_tex, v_texcoord - v * ts);
-	float b = (1. - max(max(color.r, color.g), color.b)) * (maxr * maxr + smoothr);
-	float b2 = b - b * smoothr - .01;
-	//float b = (1. - max(max(color.r, color.g), color.b)) * (maxr * maxr);
-	return smoothstep(b, b2, dot(v, v));
-	//return (1. - step(b, dot(v, v)));
+	float b = (1. - max(max(color.r, color.g), color.b));
+	float b1 = (b - smoothr) * (maxr * maxr);
+	float b2 = b * (maxr2 * maxr2);
+	return smoothstep(b2, b1, dot(v, v));
 }
 
 vec3 calculateBlack(vec3 color)
 {
-	vec2 p = gl_FragCoord.xy * scale;
+	//vec2 p = gl_FragCoord.xy * scale;
+	vec2 p = v_texcoord / u_texscale * scale;
 	vec2 d = vec2(dot(u_veca, vx), dot(u_vecb, vy));
 	vec2 c = vec2(dot(p, vx), dot(p, vy));
 	vec2 f = fract(c/d);
@@ -64,86 +67,33 @@ vec3 calculateBlack(vec3 color)
 	return result;
 }
 
-float red(vec2 v)
+vec3 color(vec2 v)
 {
-	vec4 color = texture2D(u_tex, v_texcoord - v * ts2);
+	vec4 color = texture2D(u_tex, v_texcoord - v * ts);
 	float b = max(max(color.r, color.g), color.b);
-	float a = (b - color.r) * (maxr * maxr);
-	return sqrt(smoothstep(a, a - smoothr2, dot(v, v)));
+	float w = min(min(color.r, color.g), color.b);
+	float a = (b - w) / (b + 0.01) * (maxr * maxr);
+	return smoothstep(a, a - smoothr, dot(v, v)) * (vec3(b, b, b) - color.rgb) / (b - w + 0.01);
+	//return smoothstep(0.2, 0.1, dot(v, v)) * vec3(1., .1, 0.);
 }
 
-vec3 calculateRed(vec3 color)
+vec3 calculateColor(vec3 col)
 {
-	vec2 p = (gl_FragCoord.xy) * scale2 + maxr * maxr * vy + maxr * u_veca;
-	vec2 d = vec2(dot(veca2, vx2), dot(vecb2, vy2));
-	vec2 c = vec2(dot(p, vx2), dot(p, vy2));
+	//vec2 p = (gl_FragCoord.xy) * scale + maxr * vy;
+	vec2 p = v_texcoord / u_texscale * scale + maxr * vy / scale;
+	vec2 d = vec2(dot(u_veca, vx), dot(u_vecb, vy));
+	vec2 c = vec2(dot(p, vx), dot(p, vy));
 	vec2 f = fract(c/d);
 	float s = step(1., abs(f.x) + abs(f.y));
 
-	vec2 v0 = (f.x - 1.) * veca2 + f.y * vecb2;
-	vec2 v1 = f.x * veca2 + (f.y - 1.) * vecb2;
-	vec2 v2 = (f.x - s) * veca2 + (f.y - s) * vecb2;
+	vec2 v0 = (f.x - 1.) * u_veca + f.y * u_vecb;
+	vec2 v1 = f.x * u_veca + (f.y - 1.) * u_vecb;
+	vec2 v2 = (f.x - s) * u_veca + (f.y - s) * u_vecb;
 
-	vec3 result = color;
-	result -= red(v0) * vec3(1., 0., 0.);
-	result -= red(v1) * vec3(1., 0., 0.);
-	result -= red(v2) * vec3(1., 0., 0.);
-
-	return result;
-}
-
-float green(vec2 v)
-{
-	vec4 color = texture2D(u_tex, v_texcoord - v * ts2);
-	float b = max(max(color.r, color.g), color.b);
-	float a = (b - color.g) * (maxr * maxr);
-	return sqrt(smoothstep(a, a - smoothr2, dot(v, v)));
-}
-
-vec3 calculateGreen(vec3 color)
-{
-	vec2 p = (gl_FragCoord.xy) * scale2 + maxr * maxr * vy;
-	vec2 d = vec2(dot(veca2, vx2), dot(vecb2, vy2));
-	vec2 c = vec2(dot(p, vx2), dot(p, vy2));
-	vec2 f = fract(c/d);
-	float s = step(1., abs(f.x) + abs(f.y));
-
-	vec2 v0 = (f.x - 1.) * veca2 + f.y * vecb2;
-	vec2 v1 = f.x * veca2 + (f.y - 1.) * vecb2;
-	vec2 v2 = (f.x - s) * veca2 + (f.y - s) * vecb2;
-
-	vec3 result = color;
-	result -= green(v0) * vec3(0., 1., 0.);
-	result -= green(v1) * vec3(0., 1., 0.);
-	result -= green(v2) * vec3(0., 1., 0.);
-
-	return result;
-}
-
-float blue(vec2 v)
-{
-	vec4 color = texture2D(u_tex, v_texcoord - v * ts2);
-	float b = max(max(color.r, color.g), color.b);
-	float a = (b - color.b) * (maxr * maxr);
-	return sqrt(smoothstep(a, a - smoothr2, dot(v, v)));
-}
-
-vec3 calculateBlue(vec3 color)
-{
-	vec2 p = (gl_FragCoord.xy) * scale2 + maxr * maxr * vy - maxr * u_veca;
-	vec2 d = vec2(dot(veca2, vx2), dot(vecb2, vy2));
-	vec2 c = vec2(dot(p, vx2), dot(p, vy2));
-	vec2 f = fract(c/d);
-	float s = step(1., abs(f.x) + abs(f.y));
-
-	vec2 v0 = (f.x - 1.) * veca2 + f.y * vecb2;
-	vec2 v1 = f.x * veca2 + (f.y - 1.) * vecb2;
-	vec2 v2 = (f.x - s) * veca2 + (f.y - s) * vecb2;
-
-	vec3 result = color;
-	result -= blue(v0) * vec3(0., 0., 1.);
-	result -= blue(v1) * vec3(0., 0., 1.);
-	result -= blue(v2) * vec3(0., 0., 1.);
+	vec3 result = col;
+	result -= color(v0);
+	result -= color(v1);
+	result -= color(v2);
 
 	return result;
 }
@@ -167,12 +117,14 @@ void main()
 	result -= smoothstep(b2, b2 - ed, length(v2)) * vec3(1., 1., 1.);*/
 
 	vec3 result = vec3(1., 1., 1.);
-	result = calculateBlue(result);
-	result = calculateGreen(result);
-	result = calculateRed(result);
+	//result = calculateBlue(result);
+	//result = calculateGreen(result);
+	//result = calculateRed(result);
 	result = calculateBlack(result);
+	result = calculateColor(result);
 	gl_FragColor = vec4(result, 1.);
 
+	//gl_FragColor = (texture2D(u_tex, v_texcoord) + texture2D(u_tex2, v_texcoord)) * 0.5;
 	//gl_FragColor = texture2D(u_tex, v_texcoord);
 
 	//vec4(, smoothstep(e, e + .1, dot(v1, v1)), smoothstep(e, e + .1, dot(v2, v2)), 1.);

@@ -67,18 +67,20 @@ initScene = (ctx, log) ->
 		scene.fbTemp = gl.createFramebuffer()
 		scene.fbColor = gl.createTexture()
 		scene.fbTempColor = gl.createTexture()
-		scene.fbWidth = width * 8
-		scene.fbHeight = height * 8
+		scene.fbTempWidth = width * 8
+		scene.fbTempHeight = height * 8
+		scene.fbWidth = width * 2
+		scene.fbHeight = height * 2
 
 		gl.bindTexture(gl.TEXTURE_2D, scene.fbColor)
 		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, scene.fbWidth, scene.fbHeight, 0, gl.RGBA, gl.UNSIGNED_SHORT_4_4_4_4, null)
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
 
 		gl.bindTexture(gl.TEXTURE_2D, scene.fbTempColor)
-		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, scene.fbWidth, scene.fbHeight, 0, gl.RGBA, gl.UNSIGNED_SHORT_4_4_4_4, null)
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, scene.fbTempWidth, scene.fbTempHeight, 0, gl.RGBA, gl.UNSIGNED_SHORT_4_4_4_4, null)
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
@@ -104,11 +106,13 @@ initScene = (ctx, log) ->
 		checkUniform(shader, "u_scale")
 		checkUniform(shader, "u_translate")
 		checkUniform(shader, "u_tex")
+		checkUniform(shader, "u_texscale")
 		checkAttrib(shader, "a_coord")
 
 		gl.uniform2f(shader.uniform.u_scale, 1, 1)
 		gl.uniform2f(shader.uniform.u_translate, 0, 0)
 		gl.uniform1i(shader.uniform.u_tex, 0)
+		gl.uniform2f(shader.uniform.u_texscale, 1 / scene.fbTempWidth, 1 / scene.fbTempHeight)
 
 
 		dwscale = scene.fbWidth / gl.drawingBufferWidth
@@ -119,6 +123,7 @@ initScene = (ctx, log) ->
 		gl.useProgram(shader.program)
 
 		checkUniform(shader, "u_tex")
+		checkUniform(shader, "u_tex2")
 		checkUniform(shader, "u_veca")
 		checkUniform(shader, "u_vecb")
 		checkUniform(shader, "u_scale")
@@ -131,10 +136,11 @@ initScene = (ctx, log) ->
 		gl.uniform2f(shader.uniform.u_texscale, 1 / scene.fbWidth, 1 / scene.fbHeight)
 
 		gl.uniform1i(shader.uniform.u_tex, 0)
+		gl.uniform1i(shader.uniform.u_tex2, 1)
 
 
-		wscale = width / scene.fbWidth
-		hscale = height / scene.fbHeight
+		wscale = width / scene.fbTempWidth
+		hscale = height / scene.fbTempHeight
 		scale = Math.max(wscale, hscale)
 
 		shader = scene.blendshader
@@ -165,7 +171,7 @@ initScene = (ctx, log) ->
 
 		gl.uniform1i(shader.uniform.u_tex0, 0)
 		gl.uniform1i(shader.uniform.u_tex1, 1)
-		gl.uniform4f(shader.uniform.u_transform, -width, -height, 1 / (scene.fbWidth * scale), 1 / (scene.fbHeight * scale))
+		gl.uniform4f(shader.uniform.u_transform, -width, -height, 1 / (scene.fbTempWidth * scale), 1 / (scene.fbTempHeight * scale))
 		gl.uniform2f(shader.uniform.u_texscale, 1 / width, 1 / height)
 		gl.uniform1f(shader.uniform.u_scale, 1 / scale)
 
@@ -175,7 +181,7 @@ initScene = (ctx, log) ->
 	scene.render = (factor) ->
 
 		gl.bindFramebuffer(gl.FRAMEBUFFER, scene.fbTemp);
-		gl.viewport(0, 0, scene.fbWidth, scene.fbHeight)
+		gl.viewport(0, 0, scene.fbTempWidth, scene.fbTempHeight)
 		gl.clearColor(0.4, 0.4, 0, 1)
 		gl.clear(gl.COLOR_BUFFER_BIT)
 
@@ -204,6 +210,8 @@ initScene = (ctx, log) ->
 		gl.activeTexture(gl.TEXTURE1)
 		gl.bindTexture(gl.TEXTURE_2D, scene.tex1)
 
+		gl.enable(gl.BLEND)
+
 		gl.uniform1f(shader.uniform.u_progress, factor)
 
 		gl.bindBuffer(gl.ARRAY_BUFFER, scene.animverts)
@@ -221,8 +229,8 @@ initScene = (ctx, log) ->
 
 		gl.bindFramebuffer(gl.FRAMEBUFFER, scene.fb)
 		gl.viewport(0, 0, scene.fbWidth, scene.fbHeight)
+		# gl.clearColor(0.7, 0.9, 0.9, 1)
 		gl.clearColor(1, 1, 1, 1)
-		#gl.clearColor(1, 1, 1, 1)
 		gl.clear(gl.COLOR_BUFFER_BIT)
 
 		gl.activeTexture(gl.TEXTURE0)
@@ -246,6 +254,9 @@ initScene = (ctx, log) ->
 
 		gl.activeTexture(gl.TEXTURE0)
 		gl.bindTexture(gl.TEXTURE_2D, scene.fbColor)
+
+		gl.activeTexture(gl.TEXTURE1)
+		gl.bindTexture(gl.TEXTURE_2D, scene.fbTempColor)
 
 		gl.bindBuffer(gl.ARRAY_BUFFER, scene.vertices)
 		gl.vertexAttribPointer(shader.attrib.a_coord, 2, gl.FLOAT, false, 0, 0)
