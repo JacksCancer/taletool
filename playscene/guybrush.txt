@@ -1,0 +1,44 @@
+{
+    image: "hobo.png",
+    anims: [
+        "walk-right": {
+            frames: 6,
+            x: 0, y: 0,
+            dx: 16, dy: 16,
+            dt: 100,
+            speed: 1,
+            joints: {
+                0: {
+                    "walk-down": { frame: 0, dt: 100 },
+                    "walk-up": { frame: 0, dt: 100 }
+                }
+            }
+        },
+        "walk-down-right": {
+            frames: 4,
+            x: 0, y: 16,
+            dx: 16, dy: 16,
+            dt: 100,
+            speed: 1,
+            joints: {
+                0: {
+                    "walk-left": { frame: 0, dt: 100 },
+                    "walk-right": { frame: 0, dt: 100 }
+                }
+            }
+        },
+        "walk-up-right": {
+            frames: 4,
+            x: 0, y: 32,
+            dx: 16, dy: 16,
+            dt: 100,
+            speed: 1,
+            joints: {
+                0: {
+                    "walk-left": { frame: 0, dt: 100 },
+                    "walk-right": { frame: 0, dt: 100 }
+                }
+            }
+        }
+    ]
+}

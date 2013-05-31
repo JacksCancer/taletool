@@ -1,0 +1,19 @@
+fs = require 'fs'
+{exec} = require 'child_process'
+
+sources =
+	talescene: ['glcontext', 'scene', 'sceneobject', 'floor']
+
+destdir = "build"
+
+task 'sbuild', 'Build single js', ->
+	for pkg, src of sources
+		console.log "coffee -c -j #{pkg}.coffee --output #{destdir} #{(src.map (name) -> "#{name}.coffee").join(' ')}"
+		exec "coffee -c -j #{pkg}.coffee --output #{destdir} #{(src.map (name) -> "#{name}.coffee").join(' ')}",
+			(err, stdout, stderr) ->
+				console.log stdout
+				if err
+					console.log "failed:"
+					exec "coffee -c --output #{destdir} #{(src.map (name) -> "#{name}.coffee").join(' ')}",
+						(err, stdout, stderr) ->
+							console.log "#{stderr}"
