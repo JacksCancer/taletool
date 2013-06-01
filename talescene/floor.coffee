@@ -40,57 +40,6 @@ class Floor
 		path.pop()
 		return results
 
-	# optimize route from p0 to p3 constraint to pass between p1 and p2
-	# optimizeSection: (result, p0, p1, p2, p3) ->
-	# 	v = vec3.create()
-	# 	vec3.sub(v, p2, p1)
-	# 	d = vec3.create()
-	# 	vec3.sub(d, p3, p0)
-	# 	vec3.normalize(d, d)
-	# 	n = vec3.create()
-	# 	vec3.cross(n, d, vec3.cross(n, d, v))
-	# 	a = vec3.create()
-	# 	vec3.sub(a, p0, p1)
-	# 	s = vec3.dot(a, n)
-	# 	t = vec3.dot(v, n)
-
-	# 	if s * t < 0
-	# 		vec3.copy(result, p1)
-	# 		return false
-	# 	else if Math.abs(t) < Math.abs(s)
-	# 		vec3.add(result, p1, v)
-	# 		return false
-	# 	else
-	# 		vec3.scaleAndAdd(result, p1, v, s/t)
-	# 		return true
-
-	# optimize route from p0 to p3 constraint to pass between p1 and p2
-	# optimizeSection: (result, p0, p1, p2, p3) ->
-	# optimizeSection: (p0, p1, p2, p3) ->
-	# 	v = vec3.create()
-	# 	vec3.sub(v, p2, p1)
-	# 	a = vec3.create()
-	# 	vec3.sub(a, p0, p1)
-
-	# 	d = vec3.create()
-	# 	vec3.sub(d, p3, p0)
-	# 	vec3.normalize(d, d)
-	# 	n = vec3.create()
-	# 	vec3.cross(n, vec3.cross(n, d, v), d)
-		
-	# 	s = vec3.dot(a, n)
-	# 	t = vec3.dot(v, n)
-
-	# 	# t should be positive since n and v are pointing in the same direction
-	# 	throw t if t < 0
-
-	# 	if s <= 0
-	# 		return 0
-	# 	else if t <= s
-	# 		return 1
-	# 	else
-	# 		return s/t
-
 	# calculates the nearest point q on section p0+a to p0+a+v and section p0 to p1
 	# and returns u where q = p0 + a + v * u
 	intersection: (a, v, p0, p1) ->
@@ -200,32 +149,18 @@ class Floor
 
 			if path.length > 2
 				for i in [1...path.length-1]
-					# a = path[i-1][0]
-					# a = 
-					# b = path[i][1]
-					# b = @vertices[path[i][1]]
-					# c = @vertices[path[i][2]]
-					# d = path[i+1][0]
-
-					# s = @optimizeSection(a, b, c, d)
 					s = @optimizeSection(path[i-1], path, i)
 					v = vec3.create()
 					vec3.lerp(v, path[i][0], path[i][1], s)
 					path[i] = v
-
 					len += vec3.dist(path[i-1], v)
-
-					#j = i + 1
-					#@optimizeSection(path[i][0], a, b, c, path[j][0])
-
-					# while j < path.length and 
-					# 	j++
 
 			path[path.length-1] = p1
 
 		return { path:path, len:len }
 
 
+	# calculates an array of vec3s
 	navigate: (p0, i0, p1, i1) ->
 		shortest = null
 		minlen = NaN
