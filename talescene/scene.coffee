@@ -1,6 +1,6 @@
 
 
-class Scene
+class @Scene
 
 	constructor: (@ctx, @log) ->
 		@gl = @ctx.gl
@@ -14,6 +14,22 @@ class Scene
 				[vsrc] = vsResult
 				[fsrc] = fsResult
 				@[name] = @ctx.compile(vsrc, fsrc))
+
+	loadImage: (file) ->
+		img = new Image()
+		img.src = file
+		$(img).imagesLoaded().then(() -> img)
+
+	createTexture: (img) ->
+		tex = @gl.createTexture()
+		@gl.bindTexture(@gl.TEXTURE_2D, tex)
+		#@gl.pixelStorei(@gl.UNPACK_FLIP_Y_WEBGL, true)
+		@gl.texImage2D(@gl.TEXTURE_2D, 0, @gl.RGBA, @gl.RGBA, @gl.UNSIGNED_BYTE, img)
+		@gl.texParameteri(@gl.TEXTURE_2D, @gl.TEXTURE_MAG_FILTER, @gl.NEAREST)
+		@gl.texParameteri(@gl.TEXTURE_2D, @gl.TEXTURE_MIN_FILTER, @gl.NEAREST)
+		tex.width = img.width
+		tex.height = img.height
+		tex
 
 	loadTexture: (name, file) ->
 		img = new Image()
@@ -44,7 +60,7 @@ class Scene
 		$.getJSON(file, (data) =>
 			@[name] = data
 			)
-	
+
 	checkUniform: (shader, name) ->
 		@log("unknown uniform " + name) if not shader.uniform[name]?
 
@@ -55,4 +71,3 @@ class Scene
 		err = @gl.getError()
 		@log("gl error: " + err) if err != @gl.NO_ERROR
 
-@Scene = Scene
