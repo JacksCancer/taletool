@@ -9,6 +9,12 @@ class PlayScene extends Scene
 			@loadShader("waypointShader", "simple")
 			@loadTexture("animtex", "sketches4.png")
 			@loadData("stage", "meadow.txt")
+
+			$.getJSON("guybrush.txt").then((data) =>
+				@loadImage(data.image).then((img) =>
+					tex = @createTexture(img)
+					@walker = new WalkingObject(tex, data.anims)
+					))
 			)
 
 
@@ -20,7 +26,7 @@ class PlayScene extends Scene
 
 		@projection = mat4.create()
 		@invProjection = mat4.create()
-		
+
 		#mat4.translate(@projection, @projection, [0, -height/2, -height, 0])
 		mat4.translate(@projection, @projection, [-w/2, -h/2, -h, 0])
 		mat4.rotateX(@projection, @projection, -45 / 180 * Math.PI)
@@ -111,7 +117,7 @@ class PlayScene extends Scene
 				path.reverse()
 				for p in path
 					@points.push(p[0], p[1], p[2])
-					
+
 		@gl.bindBuffer(@gl.ARRAY_BUFFER, @pointBuffer)
 
 		if @points.length > oldlen
@@ -142,7 +148,7 @@ class PlayScene extends Scene
 		if @points.splice(0, 9,
 				p0[0], p0[1], p0[2] + 10,
 				p0[0], p0[1], p0[2],
-				nearest[0], nearest[1], nearest[2]).length < 9 
+				nearest[0], nearest[1], nearest[2]).length < 9
 			@gl.bufferData(@gl.ARRAY_BUFFER, new Float32Array(@points), @gl.DYNAMIC_DRAW)
 		else
 			@gl.bufferSubData(@gl.ARRAY_BUFFER, 0, new Float32Array(@points, 0, 9))
@@ -152,8 +158,8 @@ class PlayScene extends Scene
 		# 	v = @graph.vertices[i]
 		# 	@points.push(v[0], v[1], v[2])
 
-		
-		
+
+
 
 		# @points = []
 		# @points.push {x: p0[0], y:p0[1]}
@@ -210,7 +216,7 @@ class PlayScene extends Scene
 
 		#mat = mat4.create()
 		#mat4.ortho(mat, 0, @gl.drawingBufferWidth, @gl.drawingBufferHeight, 0, -1, 1)
-		
+
 		#@gl.uniformMatrix4fv(shader.uniform.u_projection, false, mat)
 		# @gl.uniformMatrix4fv(shader.uniform.u_projection, false, @projection)
 		# @gl.uniform4f(shader.uniform.u_color, 0, .5, 0, 1)
