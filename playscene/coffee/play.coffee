@@ -5,7 +5,8 @@ class PlayScene extends Scene
 	constructor: (ctx, log) ->
 		super(ctx, log)
 		@loading = $.when(
-			@loadShader("animShader", "simpleanim")
+			@loadShader("animShader", "simpleanim.old")
+			@loadShader("spriteShader", "simpleanim")
 			@loadShader("waypointShader", "simple")
 			@loadTexture("animtex", "sketches4.png")
 			@loadData("stage", "meadow.txt")
@@ -13,7 +14,12 @@ class PlayScene extends Scene
 			$.getJSON("guybrush.txt").then((data) =>
 				@loadImage(data.image).then((img) =>
 					tex = @createTexture(img)
-					@walker = new WalkingObject(tex, data.anims)
+					@walking = new WalkingObject(tex, data.anims)
+					@player = new SceneObject()
+
+
+
+					# TODO: init player
 					))
 			)
 
@@ -38,6 +44,17 @@ class PlayScene extends Scene
 
 		@log mat4.str(@projection)
 		@log mat4.str(@invProjection)
+
+		shader = @spriteShader
+
+		@checkUniform(shader, "u_tex")
+		@checkUniform(shader, "u_pos")
+		@checkUniform(shader, "u_anchor")
+		@checkUniform(shader, "u_size")
+		@checkUniform(shader, "u_projection")
+		@checkUniform(shader, "u_texoffset")
+		@checkUniform(shader, "u_texscale")
+		@checkAttrib(shader, "a_coord")
 
 		shader = @animShader
 
@@ -71,6 +88,9 @@ class PlayScene extends Scene
 		@floorRenderer = new FloorRenderer(@graph)
 		@floorRenderer.updateGeometry(@gl)
 		@selectedTriangle = null
+
+		@player.animate(@walking.tex, @walking.walk(@graph.navigate(vec3.fromValues(100,55,0), 0, vec3.fromValues(100, 55, 0), 0)))
+		@player.update(new Date().getTime())
 
 		# @graph = new WaypointGraph(@stage)
 		# @waypointRenderer = new WaypointRenderer(shader, @graph)
@@ -209,6 +229,27 @@ class PlayScene extends Scene
 		@gl.bindBuffer(@gl.ARRAY_BUFFER, @pointBuffer)
 		@gl.vertexAttribPointer(shader.attrib.a_vertex, 3, @gl.FLOAT, false, 0, 0)
 		@gl.drawArrays(@gl.LINE_STRIP, 0, @points.length / 3)
+
+
+		@gl.disable(@gl.BLEND)
+
+		@checkError()
+
+		# render walker
+
+		shader = @spriteShader
+
+		@ctx.use(shader)
+
+		@gl.uniformMatrix4fv(shader.uniform.u_projection, false, @projection)
+
+		@player.setupRender(@gl, shader)
+
+		@gl.enable(@gl.BLEND)
+
+		@gl.bindBuffer(@gl.ARRAY_BUFFER, @vertices)
+		@gl.vertexAttribPointer(shader.attrib.a_coord, 2, @gl.FLOAT, false, 0, 0)
+		@gl.drawArrays(@gl.TRIANGLE_STRIP, 0, 4)
 
 		@gl.disable(@gl.BLEND)
 
