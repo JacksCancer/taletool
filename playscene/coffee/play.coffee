@@ -42,9 +42,6 @@ class PlayScene extends Scene
 		mat4.multiply(@projection, frustum, @projection)
 		mat4.invert(@invProjection, @projection)
 
-		@log mat4.str(@projection)
-		@log mat4.str(@invProjection)
-
 		shader = @spriteShader
 
 		@checkUniform(shader, "u_tex")
@@ -89,8 +86,9 @@ class PlayScene extends Scene
 		@floorRenderer.updateGeometry(@gl)
 		@selectedTriangle = null
 
+		@player.setPosition(vec3.fromValues(100,55,0), 0)
+
 		@player.animate(@walking.tex, @walking.walk(@graph.navigate(vec3.fromValues(100,55,0), 0, vec3.fromValues(100, 55, 0), 0)))
-		@player.update(new Date().getTime())
 
 		# @graph = new WaypointGraph(@stage)
 		# @waypointRenderer = new WaypointRenderer(shader, @graph)
@@ -120,8 +118,6 @@ class PlayScene extends Scene
 		vec4.scale(p0, p0, 1/p0[3])
 		vec4.scale(p1, p1, 1/p1[3])
 
-		#@log(p0[0] + "," + p0[1] + "," + p0[2] + " -> " + p1[0] + "," + p1[1] + "," + p1[2])
-
 		pickresult = @graph.pick(p0, p1)
 
 		oldlen = @points.length
@@ -131,12 +127,13 @@ class PlayScene extends Scene
 			p0[0], p0[1], p0[2],
 			pickresult[0][0], pickresult[0][1], pickresult[0][2])
 
-		if @lastpick?
-			path = @graph.navigate(@lastpick[0], @lastpick[1], pickresult[0], pickresult[1])
-			if path?
-				path.reverse()
-				for p in path
-					@points.push(p[0], p[1], p[2])
+		path = @graph.navigate(@player.pos, @player.areaIndex, pickresult[0], pickresult[1])
+		if path?
+			@player.animate(@walking.tex, @walking.walk(path))
+			setTimeout((() => @update()), 0)
+			# path.reverse()
+			for p in path
+				@points.push(p.pos[0], p.pos[1], p.pos[2])
 
 		@gl.bindBuffer(@gl.ARRAY_BUFFER, @pointBuffer)
 
@@ -195,6 +192,11 @@ class PlayScene extends Scene
 		# @gl.bufferData(@gl.ARRAY_BUFFER, new Float32Array(vertices), @gl.DYNAMIC_DRAW)
 
 		#@click(x, y)
+
+	update: () ->
+		dt = @player.update(new Date().getTime())
+		setTimeout((() => @update()), dt) if dt?
+		@render(0)
 
 
 	render: (num) ->
