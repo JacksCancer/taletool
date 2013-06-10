@@ -21,7 +21,7 @@ void main()
 	vec3 my = vec3(u_projection[0][1], u_projection[1][1], u_projection[2][1]);
 	vec3 mz = vec3(u_projection[0][2], u_projection[1][2], u_projection[2][2]);
 
-	vec3 dx = normalize(cross(my, mz)) * (a_coord.x * u_size.x - u_anchor.x);
+	vec3 dx = normalize(cross(my, mz)) * (u_anchor.x - a_coord.x * u_size.x);
 	vec3 dy = normalize(cross(mx, mz)) * (u_anchor.y - a_coord.y * u_size.y);
 
 	gl_Position = u_projection * vec4(dx + dy + u_pos, 1);
