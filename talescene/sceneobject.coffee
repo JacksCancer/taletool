@@ -2,7 +2,7 @@
 
 class @SceneObject
 	constructor: () ->
-		@animations = []
+		@animations = null
 		# current animation
 		@animsection = null
 		# time spend in current animation
@@ -10,16 +10,23 @@ class @SceneObject
 		# index into
 		@pathindex = 0
 		@timestamp = null
+		@pos = vec3.create()
+		@areaIndex = null
+
+	setPosition: (p, i) ->
+		vec3.copy(@pos, p)
+		@areaIndex = i
 
 	update: (timestamp) ->
 		if @timestamp == null
 			# start of animation
-			@timestamp = timestamp
 			@dt = 0
 			@pathindex = 0
 			@animsection = @animations.shift()
 		else
 			@dt += timestamp - @timestamp
+
+		@timestamp = timestamp
 
 		while @animsection.dt[@pathindex] < @dt
 			if @pathindex + 1 < @animsection.dt.length
@@ -36,15 +43,6 @@ class @SceneObject
 					@dt = @animsection.len
 					break
 
-		return
-
-	animate: (@tex, @animations) ->
-		@timestamp = null
-
-	setupRender: (gl, shader) ->
-
-		pos = vec3.create()
-
 		if @pathindex > 0
 
 			i0 = @pathindex - 1
@@ -56,12 +54,24 @@ class @SceneObject
 			d0 = @dt - dt0
 			d1 = dt1 - dt0
 
-			p0 = @animsection.path[i0]
-			p1 = @animsection.path[i1]
+			p0 = @animsection.path[i0].pos
+			p1 = @animsection.path[i1].pos
 
-			vec3.lerp(pos, p0, p1, d0 < d1 ? d0 / d1 : 1)
+			vec3.lerp(@pos, p0, p1, if d0 < d1 then d0 / d1 else 1)
+			@areaIndex = @animsection.path[i0].area
 		else
-			vec3.copy(pos, @animsection.path[@pathindex])
+			vec3.copy(@pos, @animsection.path[@pathindex].pos)
+			@areaIndex = @animsection.path[@pathindex].area
+
+		if @dt < @animsection.len
+			@animsection.anim.dt
+
+
+	animate: (@tex, @animations) ->
+		@timestamp = null
+		@animsection = @animations[0]
+
+	setupRender: (gl, shader) ->
 
 		frame = Math.floor(@dt / @animsection.anim.dt) % @animsection.anim.frames
 		dx = @animsection.anim.dx
@@ -69,10 +79,15 @@ class @SceneObject
 		tx = (@animsection.anim.x + dx * frame) / @tex.width
 		ty = @animsection.anim.y / @tex.height
 
+		sx = if @animsection.anim.mirrored then -dx else dx
+		sy = dy
 
-		gl.uniform3fv(shader.uniform.u_pos, pos)
-		gl.uniform2f(shader.uniform.u_anchor, @animsection.anim.cx, @animsection.anim.cy)
-		gl.uniform2f(shader.uniform.u_size, dx, dy)
+		ax = if @animsection.anim.mirrored then -@animsection.anim.cx else @animsection.anim.cx
+		ay = @animsection.anim.cy
+
+		gl.uniform3fv(shader.uniform.u_pos, @pos)
+		gl.uniform2f(shader.uniform.u_anchor, ax, ay)
+		gl.uniform2f(shader.uniform.u_size, sx, sy)
 
 		gl.uniform1i(shader.uniform.u_tex, 0)
 		gl.uniform2f(shader.uniform.u_texoffset, tx, ty)
@@ -129,30 +144,35 @@ class @WalkingObject extends SpriteSet
 	walk: (path) ->
 		d = vec2.create()
 		lastanim = null
-		for v1 in path
-			if not v0?
-				v0 = v1
+		for p1 in path
+			if not p0?
+				p0 = p1
 				continue
 			else
-				vec2.sub(d, v1, v0)
-				mindot = NaN
+				vec2.sub(d, p1.pos, p0.pos)
+				maxdot = NaN
 				anim = null
+				maxkey = null
 				for key, a of @anims when a.dir?
 					dot = vec2.dot(d, a.dir)
-					if not (mindot <= dot)
-						mindot = dot
+					if not (maxdot > dot)
+						maxdot = dot
 						anim = a
+						maxkey = key
+
+				len = vec2.dist(p0.pos, p1.pos) * anim.dt / anim.speed
 
 				if lastanim?.anim == anim
-					lastanim.path.push(v1)
-					lastanim.len += vec2.dist(v0, v1) * anim.dt / anim.speed
+					lastanim.path.push(p1)
+					lastanim.len += len
 					lastanim.dt.push(lastanim.len)
+					p0 = p1
 					continue
 				else
 					# todo:
-					lastanim = { anim: anim, path: [v0, v1], len: vec2.dist(v0, v1) * anim.dt / anim.speed }
+					lastanim = { anim: anim, path: [p0, p1], len: len }
 					lastanim.dt = [ 0, lastanim.len ]
-					v0 = v1
+					p0 = p1
 					lastanim
 
 class @TiledAnimation

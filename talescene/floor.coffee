@@ -60,7 +60,7 @@ class Floor
 			vec3.cross(n, vec3.cross(n, d, v), d)
 		else
 			vec3.copy(n, v)
-		
+
 		s = vec3.dot(a, n)
 		t = vec3.dot(v, n)
 
@@ -88,48 +88,44 @@ class Floor
 
 	optimizeSection: (p0, path, index) ->
 
-		p1 = path[index][0]
-		p2 = path[index][1]
+		p1 = path[index].v1
+		p2 = path[index].v2
 
 		v = vec3.create()
 		vec3.sub(v, p2, p1)
 		a = vec3.create()
 		vec3.sub(a, p0, p1)
 
-		@log("sections " + index + ", " + vec3.str(p0) + ", " + vec3.str(p1) + ", " + vec3.str(p2))
-
-		bounds = [0, 1]
-		u = new Array(2)
+		lower = 0
+		upper = 1
 
 		for i in [index+1...path.length]
-			for j in [0..1]
-				u[j] = @intersection(a, v, p0, path[i][j])
+			u1 = @intersection(a, v, p0, path[i].v1)
+			u2 = @intersection(a, v, p0, path[i].v2)
 
 			# sort ascending
-			if u[0] > u[1]
-				[u[0], u[1]] = [u[1], u[0]]
+			if u1 > u2
+				[u1, u2] = [u2, u1]
 
-			@log(i + ": " + bounds[0] + ", " + bounds[1] + " (" + u[0] + ", " + u[1] + ")")
+			if u1 >= upper
+				return upper
 
-			if u[0] >= bounds[1]
-				return bounds[1]
+			if u2 <= lower
+				return lower
 
-			if u[1] <= bounds[0]
-				return bounds[0]
+			if u1 > lower
+				lower = u1
 
-			if u[0] > bounds[0]
-				bounds[0] = u[0]
+			if u2 < upper
+				upper = u2
 
-			if u[1] < bounds[1]
-				bounds[1] = u[1]
-
-		return bounds[0]
+		return lower
 
 
 
 
 	calculatePath: (p0, p1, route) ->
-		# path is an array of triples (position, edge #0, edge #1)
+		# path is an array of (edge #0, edge #1)
 		path = null
 		len = NaN
 		for i1 in route
@@ -138,24 +134,22 @@ class Floor
 				# v = vec3.create()
 				# vec3.lerp(v, @vertices[e[0]], @vertices[e[1]], 0.5)
 				# path.push([v, e[0], e[1]])
-				path.push([@vertices[e[0]], @vertices[e[1]]])
+				path.push({area: i1, v1: @vertices[e[0]], v2: @vertices[e[1]]})
 			else
-				path = [p0]
+				path = [{pos: vec3.clone(p0), area: i1}]
 			i0 = i1
 
 		if path?
 			len = 0
-			path.push([p1, p1])
+			path.push({pos: vec3.clone(p1), area: i1, v1: p1, v2: p1})
 
 			if path.length > 2
 				for i in [1...path.length-1]
-					s = @optimizeSection(path[i-1], path, i)
+					s = @optimizeSection(path[i-1].pos, path, i)
 					v = vec3.create()
-					vec3.lerp(v, path[i][0], path[i][1], s)
-					path[i] = v
-					len += vec3.dist(path[i-1], v)
-
-			path[path.length-1] = p1
+					vec3.lerp(v, path[i].v1, path[i].v2, s)
+					path[i].pos = v
+					len += vec3.dist(path[i-1].pos, v)
 
 		return { path:path, len:len }
 
@@ -249,7 +243,7 @@ class Floor
 		return [nearest, itriangle]
 
 
-		
+
 class FloorRenderer
 	constructor: (@graph) ->
 
@@ -265,7 +259,7 @@ class FloorRenderer
 		for t, i in @graph.triangles
 			for j in [0...3]
 				@indices[i*3 + j] = t[j]
-		
+
 		@vertexBuffer = gl.createBuffer()
 		@indexBuffer = gl.createBuffer()
 		gl.bindBuffer(gl.ARRAY_BUFFER, @vertexBuffer)
